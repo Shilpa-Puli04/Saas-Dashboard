@@ -8,6 +8,7 @@ export const campaignsMock: Campaign[] = [
     budget: 5000,
     impressions: 12000,
     clicks: 900,
+    assets:[]
   },
   {
     id: "2",
@@ -16,6 +17,7 @@ export const campaignsMock: Campaign[] = [
     budget: 3000,
     impressions: 8000,
     clicks: 500,
+    assets:[]
   },
   {
     id: "3",
@@ -24,6 +26,7 @@ export const campaignsMock: Campaign[] = [
     budget: 7000,
     impressions: 15000,
     clicks: 1100,
+    assets:[]
   },
   {
     id: "4",
@@ -32,6 +35,7 @@ export const campaignsMock: Campaign[] = [
     budget: 7000,
     impressions: 15000,
     clicks: 1100,
+    assets:[]
   },
   {
     id: "5",
@@ -40,6 +44,7 @@ export const campaignsMock: Campaign[] = [
     budget: 8000,
     impressions: 5000,
     clicks: 900,
+    assets:[]
   },
   {
     id: "6",
@@ -48,5 +53,6 @@ export const campaignsMock: Campaign[] = [
     budget: 900,
     impressions: 8000,
     clicks: 900,
+    assets:[]
   },
 ]

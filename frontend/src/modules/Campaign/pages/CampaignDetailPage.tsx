@@ -1,35 +1,66 @@
 import { useParams, useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { campaignsMock } from "../mock"
 import OverviewTab from "./OverviewTab"
 import AssetsTab from "../components/AssetsTab"
+import PerformanceTab from "./PerformanceTab"
+import {
+  getCampaignAssets,
+  saveCampaignAssets,
+  type Asset,
+} from "../services/campaignService"
 
 type Tab = "overview" | "assets" | "performance"
 
-type Asset = {
-  id: string
-  name: string
-}
-
 export default function CampaignDetailPage() {
-  const { id } = useParams()
+  const params = useParams()
   const navigate = useNavigate()
+  const campaignId = params.id ? String(params.id) : null
+
+  const campaign = campaignsMock.find(
+    (c) => String(c.id) === campaignId
+  )
+
   const [tab, setTab] = useState<Tab>("overview")
-
-
   const [assets, setAssets] = useState<Asset[]>([])
 
-  if (!id) return null
+  const hasLoadedRef = useRef(false)
+  useEffect(() => {
+    if (!campaignId) return
+    if (hasLoadedRef.current) return
 
-  const campaign = campaignsMock.find((c) => c.id === id)
+    const stored = getCampaignAssets(campaignId)
 
-  if (!campaign) {
-    return <div className="text-red-500">Campaign not found</div>
+    if (stored && stored.length > 0) {
+      setAssets(stored)
+    }
+
+    hasLoadedRef.current = true
+  }, [campaignId])
+  useEffect(() => {
+    if (!campaignId) return
+    if (!hasLoadedRef.current) return
+
+    saveCampaignAssets(campaignId, assets)
+  }, [assets, campaignId])
+
+  if (!campaignId || !campaign) {
+    return (
+      <div className="text-red-500">
+        Campaign not found
+      </div>
+    )
+  }
+
+  function updateAssets(
+    updater: (prev: Asset[]) => Asset[]
+  ) {
+    setAssets((prev) => updater(prev))
   }
 
   return (
     <div>
-      {/* Back */}
+    
       <button
         onClick={() => navigate("/campaigns")}
         className="text-sm text-blue-600 mb-2 hover:underline flex items-center gap-1"
@@ -37,12 +68,12 @@ export default function CampaignDetailPage() {
         ← Back to Campaigns
       </button>
 
-      {/* Title */}
+     
       <h1 className="text-xl font-semibold mb-4">
         {campaign.name}
       </h1>
 
-      {/* Tabs */}
+    
       <div className="flex gap-6 border-b mb-6">
         <TabButton
           label="Overview"
@@ -61,18 +92,20 @@ export default function CampaignDetailPage() {
         />
       </div>
 
-      {/* Tab Content */}
-      {tab === "overview" && <OverviewTab id={id} />}
+     
+      {tab === "overview" && (
+        <OverviewTab id={campaignId} />
+      )}
 
       {tab === "assets" && (
         <AssetsTab
           assets={assets}
-          setAssets={setAssets}
+          setAssets={updateAssets}
         />
       )}
 
       {tab === "performance" && (
-        <div>Performance tab coming next</div>
+        <PerformanceTab id={campaignId} />
       )}
     </div>
   )

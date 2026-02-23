@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"
-import { fetchCampaigns } from "../services/campaignService"
+import { fetchCampaigns, pauseCampaignsApi } from "../services/campaignService"
 import type { Campaign } from "../types"
 import CampaignTable from "../components/CampaignTable"
+import CampaignTableSkeleton from "../components/CampaignTableSkeleton"
+import { useDebounce } from "../hooks/useDebounce"
 
 export default function CampaignListPage() {
   const [data, setData] = useState<Campaign[]>([])
@@ -12,6 +14,8 @@ export default function CampaignListPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
 
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebounce(search, 300)
+
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string[]>([])
   const [mutating, setMutating] = useState(false)
@@ -27,29 +31,37 @@ export default function CampaignListPage() {
 
   const pageSize = 5
 
+  async function loadCampaigns() {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await fetchCampaigns()
+      setData(res)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    fetchCampaigns()
-      .then(setData)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+    loadCampaigns()
   }, [])
-
 
   useEffect(() => {
     setPage(1)
-  }, [search, statusFilter])
+  }, [debouncedSearch, statusFilter])
 
-  
   useEffect(() => {
     setSelected([])
   }, [page])
 
-  // Filter
+  const isSearching = search !== debouncedSearch
+
   const filtered = data.filter((c) => {
     const matchesSearch = c.name
       .toLowerCase()
-      .includes(search.toLowerCase())
+      .includes(debouncedSearch.toLowerCase())
 
     const matchesStatus =
       statusFilter.length === 0 ||
@@ -57,8 +69,6 @@ export default function CampaignListPage() {
 
     return matchesSearch && matchesStatus
   })
-
-  // Sort
   const sortedData = [...filtered].sort((a, b) => {
     if (!sortKey) return 0
     const valA = a[sortKey]
@@ -68,7 +78,6 @@ export default function CampaignListPage() {
     return 0
   })
 
-  // Pagination
   const total = sortedData.length
   const totalPages = Math.ceil(total / pageSize)
 
@@ -76,7 +85,6 @@ export default function CampaignListPage() {
     (page - 1) * pageSize,
     page * pageSize
   )
-
 
   function toggleOne(id: string) {
     setSelected((prev) =>
@@ -102,14 +110,6 @@ export default function CampaignListPage() {
     )
   }
 
- 
-  function pauseCampaigns(_ids: string[]) {
-    return new Promise<void>((resolve) =>
-      setTimeout(resolve, 800)
-    )
-  }
-
-  // Sort handler
   function handleSort(key: "name" | "budget") {
     if (sortKey === key) {
       setSortDir(sortDir === "asc" ? "desc" : "asc")
@@ -119,12 +119,11 @@ export default function CampaignListPage() {
     }
   }
 
-  // Bulk pause
+
   async function handleBulkPause() {
     const idsToPause = data.filter(
       (c) => selected.includes(c.id) && c.status !== "paused"
     )
-
     if (idsToPause.length === 0) return
 
     const prevState = idsToPause.map((c) => ({
@@ -134,7 +133,7 @@ export default function CampaignListPage() {
 
     setMutating(true)
 
-    // optimistic update
+   
     setData((prev) =>
       prev.map((c) =>
         prevState.some((p) => p.id === c.id)
@@ -143,63 +142,90 @@ export default function CampaignListPage() {
       )
     )
 
-    await pauseCampaigns(prevState.map((p) => p.id))
+    try {
+      await pauseCampaignsApi(prevState.map((p) => p.id))
 
-    setSelected([])
-    setMutating(false)
-
-    
-    setToast({
-      message: `${prevState.length} campaign${
-        prevState.length > 1 ? "s" : ""
-      } paused`,
-      undo: () => {
-        setData((prev) =>
-          prev.map((c) => {
-            const old = prevState.find((p) => p.id === c.id)
-            return old ? { ...c, status: old.status } : c
-          })
-        )
-      },
-    })
-
-    setTimeout(() => setToast(null), 4000)
+      setSelected([])
+      setToast({
+        message: `${prevState.length} campaign${
+          prevState.length > 1 ? "s" : ""
+        } paused`,
+      })
+    } catch {
+     
+      setData((prev) =>
+        prev.map((c) => {
+          const old = prevState.find((p) => p.id === c.id)
+          return old ? { ...c, status: old.status } : c
+        })
+      )
+      setToast({
+        message: "Pause failed. Changes reverted.",
+      })
+    } finally {
+      setMutating(false)
+      setTimeout(() => setToast(null), 4000)
+    }
   }
-  async function handleRowPause(id: string) {
-  const target = data.find((c) => c.id === id)
-  if (!target || target.status === "paused") return
-
-  const prevStatus = target.status
 
  
-  setData((prev) =>
-    prev.map((c) =>
-      c.id === id ? { ...c, status: "paused" } : c
+  async function handleRowPause(id: string) {
+    const target = data.find((c) => c.id === id)
+    if (!target || target.status === "paused") return
+
+    const prevStatus = target.status
+
+    setData((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, status: "paused" } : c
+      )
     )
-  )
 
-  await pauseCampaigns([id])
-
-  setToast({
-    message: `Campaign paused`,
-    undo: () => {
+    try {
+      await pauseCampaignsApi([id])
+      setToast({ message: "Campaign paused" })
+    } catch {
       setData((prev) =>
         prev.map((c) =>
           c.id === id ? { ...c, status: prevStatus } : c
         )
       )
-    },
-  })
+      setToast({ message: "Pause failed" })
+    }
 
-  setTimeout(() => setToast(null), 4000)
-}
+    setTimeout(() => setToast(null), 4000)
+  }
 
   const hasPausable = data.some(
     (c) => selected.includes(c.id) && c.status !== "paused"
   )
 
-  if (loading) return <div>Loading campaigns...</div>
-  if (error) return <div className="text-red-500">{error}</div>
+  if (loading) {
+    return (
+      <div>
+        <h1 className="text-xl font-semibold mb-4">
+          Campaigns
+        </h1>
+        <CampaignTableSkeleton />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-10">
+        <div className="text-red-500 mb-2">
+          Failed to load campaigns
+        </div>
+        <button
+          onClick={loadCampaigns}
+          className="px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -214,43 +240,45 @@ export default function CampaignListPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-72 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        {isSearching && (
+          <div className="text-xs text-gray-500 mt-1">
+            Searching…
+          </div>
+        )}
       </div>
 
-      {/* Multi-status filter */}
+      {/* Status filters */}
       <div className="mb-3 flex items-center gap-2">
-  {/* All */}
-  <button
-    onClick={() => setStatusFilter([])}
-    className={`px-3 py-1 rounded text-sm border ${
-      statusFilter.length === 0
-        ? "bg-blue-600 text-white border-blue-600"
-        : "bg-white text-gray-700"
-    }`}
-  >
-    All
-  </button>
-
-  {/* Status filters */}
-  {(["active", "paused", "draft"] as Campaign["status"][]).map(
-    (s) => {
-      const active = statusFilter.includes(s)
-
-      return (
         <button
-          key={s}
-          onClick={() => toggleStatusFilter(s)}
+          onClick={() => setStatusFilter([])}
           className={`px-3 py-1 rounded text-sm border ${
-            active
+            statusFilter.length === 0
               ? "bg-blue-600 text-white border-blue-600"
               : "bg-white text-gray-700"
           }`}
         >
-          {s.charAt(0).toUpperCase() + s.slice(1)}
+          All
         </button>
-      )
-    }
-  )}
-</div>
+
+        {(["active", "paused", "draft"] as Campaign["status"][]).map(
+          (s) => {
+            const active = statusFilter.includes(s)
+            return (
+              <button
+                key={s}
+                onClick={() => toggleStatusFilter(s)}
+                className={`px-3 py-1 rounded text-sm border ${
+                  active
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700"
+                }`}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            )
+          }
+        )}
+      </div>
 
       {/* Bulk bar */}
       {selected.length > 0 && (
@@ -272,7 +300,6 @@ export default function CampaignListPage() {
         </div>
       )}
 
-      {/* Table */}
       <CampaignTable
         data={pagedData}
         onSort={handleSort}
@@ -320,7 +347,6 @@ export default function CampaignListPage() {
       {toast && (
         <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-4 py-3 rounded shadow-lg flex items-center gap-4">
           <span className="text-sm">{toast.message}</span>
-
           {toast.undo && (
             <button
               onClick={() => {

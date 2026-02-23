@@ -16,7 +16,7 @@ export default function OverviewTab({ id }: Props) {
     budget?: string
   }>({})
 
-  // load campaign into form
+  
   useEffect(() => {
     if (campaign) {
       setForm({ ...campaign })
@@ -24,7 +24,7 @@ export default function OverviewTab({ id }: Props) {
     }
   }, [campaign])
 
-  // 🚨 browser leave warning (refresh / close)
+ 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (!dirty) return
@@ -39,7 +39,7 @@ export default function OverviewTab({ id }: Props) {
 
   if (!form) return <div>Campaign not found</div>
 
-  // update helper
+  
   function update<K extends keyof Campaign>(
     key: K,
     value: Campaign[K]
