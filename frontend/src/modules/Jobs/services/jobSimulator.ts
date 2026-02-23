@@ -3,13 +3,12 @@ import type { Job } from "../types"
 const timers = new Map<string, ReturnType<typeof setInterval>>()
 
 function randomStep() {
-  return Math.floor(Math.random() * 20) + 10 
+  return Math.floor(Math.random() * 20) + 10
 }
 
-function randomFailChance() {
-  return Math.random() < 0.2 
+function randomFail() {
+  return Math.random() < 0.2
 }
-
 
 export function startJobSimulation(
   job: Job,
@@ -17,27 +16,26 @@ export function startJobSimulation(
 ) {
   if (timers.has(job.id)) return
 
-
+  // pending → processing
   if (job.status === "pending") {
     job.status = "processing"
+    job.progress = 10
+    onUpdate({ ...job })
   }
 
+  if (job.status !== "processing") return
+
   const timer = setInterval(() => {
- 
-    if (
-      job.status === "completed" ||
-      job.status === "failed" ||
-      job.status === "cancelled"
-    ) {
+    if (job.status !== "processing") {
       stopJobSimulation(job.id)
       return
     }
 
-    job.progress = Math.min(100, job.progress + randomStep())
+    job.progress = Math.min(95, job.progress + randomStep())
 
-    if (job.progress >= 100) {
+    if (job.progress >= 95) {
       job.progress = 100
-      job.status = randomFailChance()
+      job.status = randomFail()
         ? "failed"
         : "completed"
       stopJobSimulation(job.id)
@@ -57,16 +55,20 @@ export function stopJobSimulation(id: string) {
   }
 }
 
-
-export function cancelJob(job: Job, onUpdate: (job: Job) => void) {
-  job.status = "cancelled"
-  stopJobSimulation(job.id)
+export function retryJobService(
+  job: Job,
+  onUpdate: (job: Job) => void
+) {
+  job.status = "pending"
+  job.progress = 0
   onUpdate({ ...job })
 }
 
-
-export function retryJob(job: Job, onUpdate: (job: Job) => void) {
-  job.status = "pending"
-  job.progress = 0
+export function cancelJobService(
+  job: Job,
+  onUpdate: (job: Job) => void
+) {
+  job.status = "cancelled"
+  stopJobSimulation(job.id)
   onUpdate({ ...job })
 }

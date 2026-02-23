@@ -1,73 +1,69 @@
 import { useEffect, useState } from "react"
+import { jobsMock } from "../mock"
 import type { Job } from "../types"
-import { loadJobs, saveJobs } from "../services/jobService"
+import {
+  startJobSimulation,
+  retryJobService,
+  cancelJobService,
+} from "../services/jobSimulator"
 
 export function useJobs() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  /** Load */
   useEffect(() => {
     try {
-      const data = loadJobs()
-      setJobs(data)
-    } catch {
+      setJobs(jobsMock)
+      setLoading(false)
+    } catch (e: any) {
       setError("Failed to load jobs")
-    } finally {
       setLoading(false)
     }
   }, [])
 
-  /** Persist whenever jobs change */
+  // start simulation for active jobs
   useEffect(() => {
-    if (!loading) saveJobs(jobs)
-  }, [jobs, loading])
-
-  /** Simulate lifecycle polling */
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setJobs((prev) =>
-        prev.map((j) => {
-          if (j.status === "pending")
-            return { ...j, status: "processing" }
-
-          if (j.status === "processing") {
-            return {
-              ...j,
-              status: Math.random() > 0.3 ? "completed" : "failed",
-            }
-          }
-
-          return j
+    jobs.forEach((job) => {
+      if (job.status === "pending" || job.status === "processing") {
+        startJobSimulation(job, (updated) => {
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === updated.id ? updated : j
+            )
+          )
         })
-      )
-    }, 4000)
-
-    return () => clearInterval(timer)
-  }, [])
+      }
+    })
+  }, [jobs])
 
   function retryJob(id: string) {
     setJobs((prev) =>
-      prev.map((j) =>
-        j.id === id ? { ...j, status: "pending" } : j
-      )
+      prev.map((j) => {
+        if (j.id !== id) return j
+        retryJobService(j, updateJob)
+        return { ...j }
+      })
     )
   }
 
   function cancelJob(id: string) {
     setJobs((prev) =>
+      prev.map((j) => {
+        if (j.id !== id) return j
+        cancelJobService(j, updateJob)
+        return { ...j }
+      })
+    )
+  }
+
+  function updateJob(updated: Job) {
+    setJobs((prev) =>
       prev.map((j) =>
-        j.id === id ? { ...j, status: "cancelled" } : j
+        j.id === updated.id ? updated : j
       )
     )
   }
 
-  return {
-    jobs,
-    loading,
-    error,
-    retryJob,
-    cancelJob,
-  }
+  return { jobs, loading, error, retryJob, cancelJob }
 }

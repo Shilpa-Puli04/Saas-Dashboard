@@ -227,139 +227,177 @@ export default function CampaignListPage() {
     )
   }
 
-  return (
+ return (
+  <div className="space-y-6">
+
+    {/* Title */}
     <div>
-      <h1 className="text-xl font-semibold mb-4">Campaigns</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+        Campaigns
+      </h1>
+      <p className="text-sm text-slate-500 mt-1">
+        Manage and monitor campaign performance
+      </p>
+    </div>
 
-      {/* Search */}
-      <div className="mb-3">
-        <input
-          type="text"
-          placeholder="Search campaigns..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-72 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        {isSearching && (
-          <div className="text-xs text-gray-500 mt-1">
-            Searching…
+   
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 via-white to-indigo-50 rounded-2xl" />
+
+      <div className="relative bg-white/80 backdrop-blur border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+
+        {/* Search */}
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search campaigns..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-80 pl-4 pr-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
           </div>
-        )}
-      </div>
 
-      {/* Status filters */}
-      <div className="mb-3 flex items-center gap-2">
-        <button
-          onClick={() => setStatusFilter([])}
-          className={`px-3 py-1 rounded text-sm border ${
-            statusFilter.length === 0
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white text-gray-700"
-          }`}
-        >
-          All
-        </button>
-
-        {(["active", "paused", "draft"] as Campaign["status"][]).map(
-          (s) => {
-            const active = statusFilter.includes(s)
-            return (
-              <button
-                key={s}
-                onClick={() => toggleStatusFilter(s)}
-                className={`px-3 py-1 rounded text-sm border ${
-                  active
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-700"
-                }`}
-              >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            )
-          }
-        )}
-      </div>
-
-      {/* Bulk bar */}
-      {selected.length > 0 && (
-        <div className="mb-3 flex items-center gap-3 bg-blue-50 border border-blue-200 px-3 py-2 rounded">
-          <span className="text-sm font-medium">
-            {selected.length} selected
-          </span>
-
-          <button
-            onClick={handleBulkPause}
-            disabled={!hasPausable || mutating}
-            className="px-3 py-1 text-sm bg-blue-600 text-white rounded disabled:opacity-40 flex items-center gap-2"
-          >
-            {mutating && (
-              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            )}
-            Pause
-          </button>
+          {isSearching && (
+            <span className="text-xs text-slate-500">
+              Searching…
+            </span>
+          )}
         </div>
-      )}
 
-      <CampaignTable
-        data={pagedData}
-        onSort={handleSort}
-        sortKey={sortKey}
-        sortDir={sortDir}
-        selected={selected}
-        onToggleOne={toggleOne}
-        onToggleAll={toggleAll}
-        onRowPause={handleRowPause}
-      />
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
-        <span>
-          Showing {(page - 1) * pageSize + 1}–
-          {Math.min(page * pageSize, total)} of {total}
-        </span>
-
-        <div className="flex items-center gap-2">
+        {/* Filters */}
+        
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1 border rounded disabled:opacity-40"
+            onClick={() => setStatusFilter([])}
+            className={`px-3.5 py-1.5 text-sm rounded-full border transition ${
+              statusFilter.length === 0
+                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+            }`}
           >
-            Prev
+            All
           </button>
 
-          <span>
-            {page} / {totalPages || 1}
-          </span>
-
-          <button
-            onClick={() =>
-              setPage((p) => Math.min(totalPages, p + 1))
+          {(["active", "paused", "draft"] as Campaign["status"][]).map(
+            (s) => {
+              const active = statusFilter.includes(s)
+              return (
+                <button
+                  key={s}
+                  onClick={() => toggleStatusFilter(s)}
+                  className={`px-3.5 py-1.5 text-sm rounded-full border capitalize transition ${
+                    active
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                      : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  {s}
+                </button>
+              )
             }
-            disabled={page === totalPages || totalPages === 0}
-            className="px-3 py-1 border rounded disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+          )}
 
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-4 py-3 rounded shadow-lg flex items-center gap-4">
-          <span className="text-sm">{toast.message}</span>
-          {toast.undo && (
+          {/* Clear */}
+          {statusFilter.length > 0 && (
             <button
-              onClick={() => {
-                toast.undo?.()
-                setToast(null)
-              }}
-              className="text-sm underline"
+              onClick={() => setStatusFilter([])}
+              className="ml-2 px-3.5 py-1.5 text-sm rounded-full border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition"
             >
-              Undo
+              Clear ({statusFilter.length})
             </button>
           )}
         </div>
-      )}
+
+        {/* Bulk Bar */}
+        {selected.length > 0 && (
+          <div className="flex items-center justify-between bg-indigo-600/5 border border-indigo-200 px-4 py-2.5 rounded-xl">
+            <span className="text-sm font-medium text-indigo-700">
+              {selected.length} selected
+            </span>
+
+            <button
+              onClick={handleBulkPause}
+              disabled={!hasPausable || mutating}
+              className="px-3.5 py-1.5 text-sm bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 disabled:opacity-40 flex items-center gap-2"
+            >
+              {mutating && (
+                <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              Pause selected
+            </button>
+          </div>
+        )}
+      </div>
     </div>
-  )
+
+    {/* Table Stage */}
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-white to-slate-50 rounded-2xl" />
+
+      <div className="relative border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <CampaignTable
+          data={pagedData}
+          onSort={handleSort}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          selected={selected}
+          onToggleOne={toggleOne}
+          onToggleAll={toggleAll}
+          onRowPause={handleRowPause}
+        />
+      </div>
+    </div>
+
+    {/* Pagination */}
+    <div className="flex items-center justify-between text-sm text-slate-600">
+      <span>
+        Showing {(page - 1) * pageSize + 1}–
+        {Math.min(page * pageSize, total)} of {total}
+      </span>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40"
+        >
+          Prev
+        </button>
+
+        <span className="px-2 text-slate-500">
+          {page} / {totalPages || 1}
+        </span>
+
+        <button
+          onClick={() =>
+            setPage((p) => Math.min(totalPages, p + 1))
+          }
+          disabled={page === totalPages || totalPages === 0}
+          className="px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+
+    {/* Toast */}
+    {toast && (
+      <div className="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-4">
+        <span className="text-sm">{toast.message}</span>
+        {toast.undo && (
+          <button
+            onClick={() => {
+              toast.undo?.()
+              setToast(null)
+            }}
+            className="text-sm underline"
+          >
+            Undo
+          </button>
+        )}
+      </div>
+    )}
+  </div>
+)
 }
