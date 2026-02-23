@@ -9,7 +9,7 @@ export default function AppLayout() {
         <nav className="flex flex-col gap-2">
           <a href="/campaigns">Campaigns</a>
           <a href="/jobs">Jobs</a>
-          <a href="/settings">Settings</a>
+          
         </nav>
       </aside>
 
