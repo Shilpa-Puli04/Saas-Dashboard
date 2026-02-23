@@ -186,6 +186,6 @@ http://localhost:5173
 
 ## Author
 Shilpa  
-Frontend Engineer Assessment Submission
+Frontend Engineer
 
 
